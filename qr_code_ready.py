@@ -18,7 +18,7 @@ class qrcode:
         return qr_id
 
     # detect and decod
-    def detectAnddecod(self, img_endereço):
+    def detectAnddecod(self, frame, ret):
 
         def obj_dist(h_im, res):
             fov = 65  # Campo de visão da camera (degrees)
@@ -50,11 +50,7 @@ class qrcode:
             frame = cv2.subtract(frame, img_lp)
             return frame, resol
 
-        cap = cv2.VideoCapture(img_endereço)
-        ret, frame = cap.read()
-        print(ret)
         if (ret):
-
             qcd = cv2.QRCodeDetector()
             frame, res = img_processiment(frame)
             read_qr, decoded_info, pontos, _ = qcd.detectAndDecodeMulti(frame)
@@ -90,7 +86,7 @@ class qrcode:
                             frame = cv2.putText(
                                 frame, str(round(theta, 2))+"o", (C[0]-15, max(pnt[:, 1]).astype(int)+30), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (0, 255, 255), 2)
 
-                            print("QR code já existente. ID:", qr_id)
+                            # print("QR code já existente. ID:", qr_id)
                         else:
 
                             qr_id = self.generate_qr_id()  # Gera um novo ID para o QR code
