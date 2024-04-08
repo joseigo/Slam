@@ -12,13 +12,13 @@ class qrcode:
         self.angulo = -1
         self.distancia = -1
         self.qr_dict = {}
-        self.qr_width = 0.05
-        self.qr_height = 0.05
-        self.operation = ""
+        self.qr_width = 0.07
+        self.qr_height = 0.07
+        self.operation = "RT_ID"
 
-    def setQrDimensions(self, width=0.05, height=0.05):
+    def setQrDimensions(self, width=0.07, height=0.07):
         """Redimensiona o QR.
-            obs.: Medidas em m ."""
+            Obs.: Medidas em metros."""
         self.qr_height = width
         self.qr_height = height
 
@@ -33,33 +33,33 @@ class qrcode:
         - CodOp = "RT"          -> (r, theta)
         - CodOp = "ID_LABEL"    -> (ID, Label)
 
-         ID = Código gerado "internamente" no Processamento
+         ID = Código gerado "internamente" no Processamento 
 
          Label = Valor contido no QR.
         """
         self.operation = CodOp
 
-    def getQRReturn(self, qr_id):
+    def getQRReturn(self, ret, qr_id, qr_valor):
         """Obtem o devido retorno com base no OpCod definido na função setQrOperation"""
         match self.operation:
             case  "RT_ID":
-                return ([self.distancia, self.angulo, qr_id])
+                return (ret, [self.distancia, self.angulo, qr_id])
             case "RT_LABEL":
-                return ([self.distancia, self.angulo, self.valor])
+                return (ret, [self.distancia, self.angulo, qr_valor])
             case "RT_ID_LABEL":
-                return ([self.distancia, self.angulo, qr_id, self.valor])
+                return (ret, [self.distancia, self.angulo, qr_id, qr_valor])
             case "RT":
-                return ([self.distancia, self.angulo])
+                return (ret, [self.distancia, self.angulo])
             case "ID_LABEL":
-                return ([qr_id, self.valor])
+                return (ret, [qr_id, qr_valor])
             case _:
-                return ([self.distancia, self.angulo, qr_id])
+                return (ret, [self.distancia, self.angulo, qr_id])
 
     def generate_qr_id(self):
         """Gera um ID baseado no Nº de QRs já detectados"""
         IdQr = len(self.qr_dict)
         return IdQr
-
+        
     # detect and decode
 
     def detectAndDecode(self, frame, ret):
@@ -89,7 +89,7 @@ class qrcode:
             return Dist, dens
 
         def obj_ang(res, C, dist, dens):
-            d_Cam = 0.045  # Distância da camera ao centro do robô
+            d_Cam = 0.045  # Distância da câmera ao centro do robô
             C_img = (res[0]/2, res[1]/2)  # obtendo o centro da imagem
             d = (C[0] - C_img[0])
             return math.atan2(d, ((dist+d_Cam)*dens))
@@ -176,7 +176,7 @@ class qrcode:
                         # Selecionando cor Vermelha (HSV) para a borda
                         color = (0, 0, 255)
                         # Retorna 0 ao indentificar mas não decodificar
-                        return (0)
+                        return self.getQRReturn(0, -1,-1)
                     # Desenhando a borda no Qr Code
                     frame = cv2.polylines(
                         frame, [pnt.astype(int)], True, color, 3)
@@ -186,18 +186,18 @@ class qrcode:
 
             else:
                 # Se leitura não for possivel, retorna '-1'
-                return (-1)
-            return self.getQRReturn(qr_id)
+                return self.getQRReturn(-1, -1,-1)
+            return self.getQRReturn(1, qr_id,valor) #Dando tudo certo
         else:
             # Se leitura do arquivo não for possivel, retorna '-1'
-            return (-1)
+            return self.getQRReturn(-1, -1,-1)
 
 
 def main():
     # imag = "http://192.168.0.12/capture"
     imag = 0
     qq = qrcode()
-    qq.setQrDimensions(0.05, 0.05)
+    qq.setQrDimensions(0.07, 0.07)
     qq.setQrOperation("RT")
 
     dec = int(input("Manda!"))
