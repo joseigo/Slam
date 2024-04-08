@@ -1,12 +1,14 @@
 import cv2
 import paho.mqtt.client as mqtt
-import qrcode
+from qr_code_ready import qrcode
 
 
 # Função de callback para conexão ao broker MQTT
 def on_connect(client, userdata, flags, reason_code, properties):
     if reason_code == 0:
         print("Connected to MQTT broker with "+str(reason_code))
+        client.publish('robot/imresp', "READY")
+
     else:
         print("Failed to connect to MQTT broker with "+str(reason_code))
 
@@ -15,8 +17,13 @@ def on_message(client, userdata, msg):
     pass
 
 #mqtt_broker =   # Endereço do broker MQTT
-cap = cv2.VideoCapture(0)  # Inicializa a captura de vídeo da webcam
-#cap = cv2.VideoCapture("10.7.220.153:81")  # LARS
+#cap = cv2.VideoCapture(0)  # Inicializa a captura de vídeo da webcam
+#cap = cv2.VideoCapture("http://10.0.0.101:81/")  # SlamNet
+#cap = cv2.VideoCapture("http://10.7.220.153:81/")  # LARS
+cap = cv2.VideoCapture("http://10.7.220.159:81/")
+
+if not cap.isOpened():
+    print("Cam não abriu!!")
 
 # Inicializa o cliente MQTT
 client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
@@ -26,21 +33,45 @@ client.on_message = on_message
 
 # Conecta ao broker MQTT
 client.connect("10.7.220.187", 1883)
+#client.connect("test.mosquitto.org", 1883)
 client.loop_start()
 
-qc = qrcode.qrcode()
-qc.setQrDimensions(0.075, 0.075)
-qc.setQrOperation("RT")
-dec = list()
+qc = qrcode()
+qc.setQrDimensions(0.07, 0.07)
+qc.setQrOperation("RT_LABEL")
+
 while True:
+    #print(cap.get(cv2.CAP_PROP_FPS))
+
     ret, frame = cap.read()  # Captura um frame da webcam
     if ret:
-        dec = qc.detectAndDecode(frame, ret)
-        if (dec != -1):
-            msg = f'{{"r":{dec[0,0]},"theta":{dec[0,1]},"id":{dec[0,2]}}}'
-            client.publish('slam/observation', msg)
+        ret, dec = qc.detectAndDecode(frame, ret)
 
-    # #cv2.imshow("Ler QR:", frame)
-    # # Ao clicar "ESC", encerra o programa
-    if cv2.waitKey(1) == 27:
+        if (ret != -1 and ret != 0 and qc.valor != -1):
+            match qc.operation:
+                case  "RT_ID":
+                    msg = f'{{"r":{dec[0]},"theta":{dec[1]},"id":{dec[2]}}}'
+                    client.publish('robot/observation', msg)
+                case "RT_LABEL":
+                    print("Detectou qr :", dec[2])
+                    msg = f'{{"r":{dec[0]},"theta":{dec[1]},"label":"{dec[2]}"}}'
+                    client.publish('robot/observation', msg)
+                case "RT_ID_LABEL":
+                    msg = f'{{"r":{dec[0]},"theta":{dec[1]},"id":{dec[2]}, "label":"{dec[3]}"}}'
+                    client.publish('robot/observation', msg)
+                case "RT":
+                    msg = f'{{"r":{dec[0]},"theta":{dec[1]}}}'
+                    client.publish('robot/observation', msg)
+                case "ID_LABEL":
+                    msg = f'{{"id":{dec[0]}, "label":{dec[1]}}}'
+                    client.publish('robot/observation', msg)
+                case _:
+                    msg = f'{{"r":{dec[0]},"theta":{dec[1]},"id":{dec[2]}}}'
+                    client.publish('robot/observation', msg)
+        else:
+            msg = f'{{"r":{dec[0]},"theta":{dec[1]},"label":{-1}}}'
+            client.publish('robot/observation', msg)
+    
+    cv2.imshow('frame', frame)
+    if cv2.waitKey(1) == ord('q'):
         break
